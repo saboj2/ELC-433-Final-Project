@@ -5,26 +5,28 @@ import scipy.io.wavfile
 import matplotlib.pyplot as plt
 
 #scale down audio file?
-fs, d_original = scipy.io.wavfile.read("championsShort.wav", False)
+fs, d_original = scipy.io.wavfile.read("champions.wav", False)
 
-d_original = d_original[1000000:1010000]
+d_original = d_original[10000:1010000]
 
-A = 100
+A = 1
 t = numpy.arange(len(d_original))
 
 
 d_original = d_original/32768.0
 
 
-noise =  A*numpy.sin(60*t/1000)
+noise =  A*numpy.sin(60*t/1000.0)
 d_noise = d_original + noise
+
+scipy.io.wavfile.write("champions_noise.wav", fs, d_noise)
 
 y = numpy.zeros(len(d_original))
 e = numpy.zeros(len(d_original))
 
-filter_order = 100
-w = numpy.zeros(filter_order)
-lr = 0.00000001
+filter_order = 1000
+w = numpy.ones(filter_order)
+lr = 0.0001
 
 noise = 5*numpy.pad(noise,(filter_order-1,filter_order-1),'constant', constant_values=(0,0))
 
@@ -39,13 +41,17 @@ for n in t:
     e[n] = d_noise[n] - y[n]
 
     for j in range(0, filter_order):
-        w[j] = w[j] + lr*noise[n-j]*e[n]
+        w[j] = w[j] + lr*noise[n-j+filter_order-1]*e[n]
+
+scipy.io.wavfile.write("champions_filter.wav", fs, e)
 
 plt.figure(1)
-plt.plot(t, d_original)
+plt.plot(d_original)
 plt.figure(2)
-plt.plot(t, d_noise)
+plt.plot(d_noise)
 plt.figure(3)
 plt.plot(e)
+plt.figure(4)
+plt.plot(y)
 
 plt.show()
