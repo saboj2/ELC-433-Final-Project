@@ -8,21 +8,30 @@ import random
 fs, d_original = scipy.io.wavfile.read("champions.wav", False)
 
 #cut audio clip for faster processing
-d_original = d_original[1000000:1200000]
+#d_original = d_original[1000000:1500000]
 #Scale to float between -1 and 1
 d_original = d_original/32768.0
 #Create time variable length of audio clip
 t = numpy.arange(len(d_original))
 
 #Generate Noise
-A = 0.25
+A = 1
 noise =  A*numpy.sin(60*t/1000.0)
 
-noise_rand = numpy.zeros(len(t))
+rand = numpy.zeros(len(t))
 
-#Random filter
+#Random filter (convolution)
 for k in t:
-    noise_rand[k] = noise[k]*(random.randrange(75,125,1)/100)
+    rand[k] = float(random.randrange(1,10,1))/1600
+
+noise_rand = numpy.convolve(noise, rand, 'same')
+
+plt.figure(1)
+plt.plot(noise)
+
+plt.figure(2)
+plt.plot(noise_rand)
+
 
 p_signal= numpy.sqrt(numpy.mean(d_original**2))
 p_noise= numpy.sqrt(numpy.mean(noise**2))
@@ -33,60 +42,72 @@ print(snr_before)
 d_noise = d_original + noise_rand
 
 #plot the original audio signal and the noisy audio signal
-plt.figure(1)
+plt.figure(3)
 plt.plot(d_original)
 plt.title("Original Signal")
 plt.xlabel("Sample n")
 plt.ylabel("Amplitude s[n]")
 
-plt.figure(2)
+plt.figure(4)
 plt.plot(d_noise)
 plt.title("Desired Signal + Noise")
 plt.xlabel("Sample n")
 plt.ylabel("Amplitude d[n]")
 
 #Filter parameters
-filter_order = 1000
-lr = 0.01
+filter_order = 100
+lr = 0.0001
 
 #init y and error vectors, and weight vector
 y = numpy.zeros(len(d_original))
 e = numpy.zeros(len(d_original))
 w = numpy.zeros(filter_order)
 
+error = numpy.zeros(len(d_original))
+error2 = numpy.zeros(len(d_original))
 
 #zero pad input to filter (noise)
 noise = numpy.pad(noise,(filter_order-1,filter_order-1),'constant', constant_values=(0,0))
+#Loop through every sample
+for n in t:
 
-for something in range(1):
-    #Loop through every sample
-    print(something)
-    for n in t:
+    #apply filter with m taps
+    for m in range(0, filter_order):
 
-        #apply filter with m taps
-        for m in range(0, filter_order):
+        #Add filter_order - 1 to account for zero padding
+        y[n] += noise[n-m+filter_order-1]*w[m]
 
-            #Add filter_order - 1 to account for zero padding
-            y[n] += noise[n-m+filter_order-1]*w[m]
+    #Find error
+    e[n] = d_noise[n] - y[n]
 
-        #Find error
-        e[n] = d_noise[n] - y[n]
-
-        #Weight update
-        for j in range(0, filter_order):
-            w[j] = w[j] + lr*noise[n-j+filter_order-1]*e[n]
-
+    #Weight update
+    for j in range(0, filter_order):
+        w[j] = w[j] + lr*noise[n-j+filter_order-1]*e[n]
+    
+    error[n] = d_original[n] - e[n]
+    
 p_signal_filt= numpy.sqrt(numpy.mean(e**2))
 p_noise_filt= numpy.sqrt(numpy.mean(y**2))
 snr_after = p_signal_filt/p_noise_filt
 print(snr_after)
 
-plt.figure(3)
+plt.figure(5)
 plt.plot(e)
 plt.title("Filtered Signal")
 plt.xlabel("Sample n")
 plt.ylabel("Amplitude e[n]")
-#plt.ylim((-0.1, 0.1))
+
+plt.figure(6)
+plt.plot(error)
+plt.title("Error")
+plt.xlabel("Sample n")
+plt.ylabel("Amplitude error[n]")
+
+plt.figure(7)
+plt.plot(error^2)
+plt.title("Error^2")
+plt.xlabel("Sample n")
+plt.ylabel("Amplitude error[n]")
 
 plt.show()
 
